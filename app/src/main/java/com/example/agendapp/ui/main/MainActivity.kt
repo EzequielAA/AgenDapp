@@ -1,12 +1,16 @@
 package com.example.agendapp.ui.main
 
 import android.app.AlarmManager
+import android.app.AlertDialog // Importa AlertDialog
 import android.app.PendingIntent
+import android.content.Context // Importa Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings // Importa Settings
 import android.widget.Button
+import android.widget.EditText // Importa EditText
 import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
@@ -34,6 +38,8 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val NOTIFICATION_PERMISSION_REQUEST = 1001
+        // Solicitud para la alarma exacta
+        private const val EXACT_ALARM_PERMISSION_REQUEST = 1002
         private var pendingEventForPermission: Event? = null
     }
 
@@ -66,7 +72,7 @@ class MainActivity : AppCompatActivity() {
             events = db.getEventsByUser(user.id),
             onEditClick = { editEvent(it) },
             onDeleteClick = { deleteEvent(it) },
-            onRemindClick = { remindEvent(it) } // Recordatorio seguro
+            onRemindClick = { remindEvent(it) }
         )
 
         rvEvents.adapter = adapter
@@ -101,11 +107,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun deleteEvent(event: Event) {
         val dialogView = layoutInflater.inflate(R.layout.dialog_confirm_delete, null)
-        val etPassword = dialogView.findViewById<android.widget.EditText>(R.id.etPasswordConfirm)
+        val etPassword = dialogView.findViewById<EditText>(R.id.etPasswordConfirm)
         val btnCancel = dialogView.findViewById<Button>(R.id.btnCancel)
         val btnConfirm = dialogView.findViewById<Button>(R.id.btnConfirm)
 
-        val alertDialog = android.app.AlertDialog.Builder(this)
+        val alertDialog = AlertDialog.Builder(this)
             .setView(dialogView)
             .setCancelable(false)
             .create()
@@ -134,6 +140,7 @@ class MainActivity : AppCompatActivity() {
                 db.deleteEvent(event.id)
                 adapter.updateData(db.getEventsByUser(user.id))
 
+                // Cancela la alarma si se elimina el evento
                 val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
                 val intent = Intent(this, ReminderReceiver::class.java)
                 val pendingIntent = PendingIntent.getBroadcast(
@@ -153,22 +160,36 @@ class MainActivity : AppCompatActivity() {
 
         alertDialog.show()
     }
-
     private fun remindEvent(event: Event) {
-        // Verifica permiso solo si es Android 13+
+        pendingEventForPermission = event
+
+        // 1. Verifica permiso de NOTIFICACIONES (Android 13+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS)
             != PackageManager.PERMISSION_GRANTED
         ) {
-            pendingEventForPermission = event
             ActivityCompat.requestPermissions(
                 this,
                 arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
                 NOTIFICATION_PERMISSION_REQUEST
             )
-            return
+            return // Espera a la respuesta del permiso
         }
 
+        // 2. Verifica permiso de ALARMAS EXACTAS (Android 12+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            if (!alarmManager.canScheduleExactAlarms()) {
+                // Si no tiene permiso, lo pide
+                Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).also {
+                    startActivityForResult(it, EXACT_ALARM_PERMISSION_REQUEST)
+                }
+                Toast.makeText(this, "Necesitamos permiso para alarmas exactas", Toast.LENGTH_LONG).show()
+                return // Espera a que el usuario dé permiso en la pantalla de Configuración
+            }
+        }
+
+        // 3. Si tiene todos los permisos, programa la alarma
         scheduleReminder(event)
     }
 
@@ -194,7 +215,7 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) { null }
 
             if (eventDateTime == null) {
-                Toast.makeText(this, "No se pudo configurar el recordatorio", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Formato de fecha/hora inválido", Toast.LENGTH_SHORT).show()
                 return
             }
 
@@ -204,6 +225,7 @@ class MainActivity : AppCompatActivity() {
                 return
             }
 
+            // Esta llamada es la que fallaba
             alarmManager.setExact(
                 AlarmManager.RTC_WAKEUP,
                 eventDateTime.time,
@@ -211,26 +233,46 @@ class MainActivity : AppCompatActivity() {
             )
 
             Toast.makeText(this, "Recordatorio activado para '${event.title}'", Toast.LENGTH_SHORT).show()
+
+        } catch (se: SecurityException) {
+            // Captura específica por si acaso
+            se.printStackTrace()
+            Toast.makeText(this, "Error de seguridad. ¿Permiso denegado?", Toast.LENGTH_LONG).show()
         } catch (e: Exception) {
             e.printStackTrace()
             Toast.makeText(this, "Error al activar recordatorio: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
-    // Manejo de permiso
+
+
+    // Manejo de todos los permisos
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
         grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
         if (requestCode == NOTIFICATION_PERMISSION_REQUEST) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                pendingEventForPermission?.let { scheduleReminder(it) }
-                pendingEventForPermission = null
+                // Si dio permiso de notificación, RE-INTENTAMOS el proceso
+                pendingEventForPermission?.let { remindEvent(it) }
             } else {
                 Toast.makeText(this, "Permiso de notificaciones denegado", Toast.LENGTH_SHORT).show()
+                pendingEventForPermission = null
             }
+        }
+    }
+
+    // Manejo del permiso de Alarma Exacta (que viene de startActivityForResult)
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode == EXACT_ALARM_PERMISSION_REQUEST) {
+            // No importa el resultCode (OK o Cancel), volvemos a chequear el permiso
+            // Si el usuario lo activó, ahora sí podremos programar la alarma
+            pendingEventForPermission?.let { remindEvent(it) }
         }
     }
 }

@@ -1,16 +1,21 @@
 package com.example.agendapp.ui.main
 
+import android.app.AlarmManager
 import android.app.DatePickerDialog
+import android.app.PendingIntent
 import android.app.TimePickerDialog
+import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import com.example.agendapp.R
 import com.example.agendapp.data.database.AgenDappDatabaseHelper
 import com.example.agendapp.data.model.Event
+import com.example.agendapp.util.ReminderReceiver
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
@@ -23,8 +28,8 @@ class EditEventActivity : AppCompatActivity() {
     private var eventId: Int = 0
     private var currentEvent: Event? = null
 
-    private var newImageUri: Uri? = null            // URI temporal seleccionada
-    private var finalImagePath: String? = null      // Ruta interna persistente
+    private var newImageUri: Uri? = null
+    private var finalImagePath: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,9 +47,6 @@ class EditEventActivity : AppCompatActivity() {
         val btnPickImage = findViewById<Button>(R.id.btnEditPickImage)
         val btnSave = findViewById<Button>(R.id.btnSaveChanges)
 
-        // ----------------------------------------------------------------------
-        // 🔥 CARGAR EL EVENTO REAL SEGÚN EL ID
-        // ----------------------------------------------------------------------
         currentEvent = db.getEventById(eventId)
 
         if (currentEvent == null) {
@@ -53,9 +55,6 @@ class EditEventActivity : AppCompatActivity() {
             return
         }
 
-        // ----------------------------------------------------------------------
-        // Cargar datos en la vista
-        // ----------------------------------------------------------------------
         val event = currentEvent!!
 
         etTitle.setText(event.title)
@@ -64,7 +63,6 @@ class EditEventActivity : AppCompatActivity() {
 
         finalImagePath = event.imagePath
 
-        // Cargar imagen interna
         if (!finalImagePath.isNullOrEmpty()) {
             val file = File(finalImagePath!!)
             if (file.exists()) {
@@ -73,9 +71,6 @@ class EditEventActivity : AppCompatActivity() {
             }
         }
 
-        // ----------------------------------------------------------------------
-        // Seleccionar fecha
-        // ----------------------------------------------------------------------
         btnPickDate.setOnClickListener {
             val c = Calendar.getInstance()
             DatePickerDialog(this, { _, y, m, d ->
@@ -83,9 +78,6 @@ class EditEventActivity : AppCompatActivity() {
             }, c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH)).show()
         }
 
-        // ----------------------------------------------------------------------
-        // Seleccionar hora
-        // ----------------------------------------------------------------------
         btnPickTime.setOnClickListener {
             val c = Calendar.getInstance()
             TimePickerDialog(this, { _, h, min ->
@@ -93,17 +85,11 @@ class EditEventActivity : AppCompatActivity() {
             }, c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE), true).show()
         }
 
-        // ----------------------------------------------------------------------
-        // Seleccionar imagen
-        // ----------------------------------------------------------------------
         btnPickImage.setOnClickListener {
             val intent = Intent(Intent.ACTION_PICK).apply { type = "image/*" }
             startActivityForResult(intent, 200)
         }
 
-        // ----------------------------------------------------------------------
-        // Guardar cambios
-        // ----------------------------------------------------------------------
         btnSave.setOnClickListener {
 
             val title = etTitle.text.toString().trim()
@@ -115,15 +101,11 @@ class EditEventActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            // Si seleccionó nueva imagen → guardarla internamente
             if (newImageUri != null) {
-
-                // borrar imagen antigua si existía
                 finalImagePath?.let { oldPath ->
                     val oldFile = File(oldPath)
                     if (oldFile.exists()) oldFile.delete()
                 }
-
                 finalImagePath = saveImageToInternal(newImageUri!!)
             }
 
@@ -135,7 +117,20 @@ class EditEventActivity : AppCompatActivity() {
             )
 
             if (db.updateEvent(updatedEvent)) {
-                Toast.makeText(this, "Evento actualizado con éxito", Toast.LENGTH_SHORT).show()
+
+                val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+                val intent = Intent(this, ReminderReceiver::class.java)
+
+                val pendingIntent = PendingIntent.getBroadcast(
+                    this,
+                    updatedEvent.id,
+                    intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+
+                alarmManager.cancel(pendingIntent)
+
+                Toast.makeText(this, "Evento actualizado. Vuelve a activar el recordatorio si es necesario.", Toast.LENGTH_LONG).show()
                 finish()
             } else {
                 Toast.makeText(this, "Error al actualizar el evento", Toast.LENGTH_SHORT).show()
@@ -143,9 +138,6 @@ class EditEventActivity : AppCompatActivity() {
         }
     }
 
-    // ==========================================================================
-    // 📌 Guardar imagen dentro de la app (igual a CreateEventActivity)
-    // ==========================================================================
     private fun saveImageToInternal(uri: Uri): String? {
         return try {
             val inputStream: InputStream? = contentResolver.openInputStream(uri)
@@ -169,9 +161,6 @@ class EditEventActivity : AppCompatActivity() {
         }
     }
 
-    // ==========================================================================
-    // Resultado de seleccionar imagen
-    // ==========================================================================
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
 
@@ -179,5 +168,6 @@ class EditEventActivity : AppCompatActivity() {
             newImageUri = data.data
             findViewById<ImageView>(R.id.ivEditPreview).setImageURI(newImageUri)
         }
+
     }
 }
