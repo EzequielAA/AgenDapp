@@ -62,6 +62,19 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
+    // 🔥 VIEWMODEL PARA COMPOSE (Esto arregla el error de viewModel())
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.0")
+
+    // 🔥 ICONOS EXTENDIDOS (Esto arregla Icons.Default.Cloud y Add)
+    implementation("androidx.compose.material:material-icons-extended:1.6.0")
+
+    // 🔥 NAVEGACIÓN (Si usas NavController)
+    implementation("androidx.navigation:navigation-compose:2.7.7")
+
+    // 🔥 RETROFIT Y GSON (Para conectar con Render)
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("androidx.constraintlayout:constraintlayout:2.2.0")

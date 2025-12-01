@@ -2,9 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Permiso para notificaciones (Android 13+) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
 
@@ -16,31 +17,30 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
+        android:theme="@style/Theme.AgenDapp"
+        android:usesCleartextTraffic="true"> <activity
+        android:name=".ui.splash.SplashActivity"
+        android:exported="true"
         android:theme="@style/Theme.AgenDapp">
+        <intent-filter>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent-filter>
+    </activity>
 
-        <!-- Splash (launcher) -->
-        <activity
-            android:name=".ui.splash.SplashActivity"
-            android:exported="true"
-            android:theme="@style/Theme.AgenDapp">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-
-        <!-- Auth -->
         <activity android:name=".ui.auth.RegisterActivity" android:exported="false" />
         <activity android:name=".ui.auth.LoginActivity" android:exported="false" />
 
-        <!-- Main Screen -->
         <activity android:name=".ui.main.MainActivity" android:exported="false" />
 
-        <!-- Events -->
         <activity android:name=".ui.main.CreateEventActivity" android:exported="false" />
         <activity android:name=".ui.main.EditEventActivity" android:exported="false" />
 
-        <!-- Recordatorio: NECESITA exported="true" PARA FUNCIONAR -->
+        <activity
+            android:name=".ui.clima.ClimaActivity"
+            android:exported="false"
+            android:label="Mis Ciudades" />
+
         <receiver
             android:name=".util.ReminderReceiver"
             android:exported="true" />
