@@ -3,14 +3,16 @@ package com.example.agendapp.data.network
 import com.example.agendapp.data.model.Ciudad
 import com.example.agendapp.data.model.CiudadRequest
 import com.example.agendapp.data.model.ClimaResponse
-import com.example.agendapp.data.model.User // Usamos tu modelo User existente
+import com.example.agendapp.data.model.LoginRequest // 🔥 AGREGADO: Importación del DTO
+import com.example.agendapp.data.model.User
 import retrofit2.Response
 import retrofit2.http.*
 
 interface ApiService {
-    // Login y Registro
+
+    // 🔥 CORRECCIÓN CLAVE: Ahora acepta LoginRequest, el DTO
     @POST("/api/usuarios/login")
-    suspend fun login(@Body request: User): Response<User>
+    suspend fun login(@Body request: LoginRequest): Response<User>
 
     @POST("/api/usuarios/registro")
     suspend fun registrar(@Body usuario: User): Response<User>

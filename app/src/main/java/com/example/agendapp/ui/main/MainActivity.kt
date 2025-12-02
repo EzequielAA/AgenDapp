@@ -25,6 +25,7 @@ import com.example.agendapp.data.model.Event
 import com.example.agendapp.ui.auth.LoginActivity
 import com.example.agendapp.ui.clima.ClimaActivity // 🔥 IMPORTANTE: Importar la nueva Activity
 import com.example.agendapp.ui.main.adapter.EventAdapter
+import com.example.agendapp.ui.splash.SplashActivity
 import com.example.agendapp.util.ReminderReceiver
 import com.example.agendapp.util.SessionManager
 import java.text.SimpleDateFormat
@@ -67,7 +68,7 @@ class MainActivity : AppCompatActivity() {
         val tvWelcome = findViewById<TextView>(R.id.tvWelcome)
 
         val genderWord = if (user.gender.lowercase() == "femenino") "¡Bienvenida" else "¡Bienvenido"
-        tvWelcome.text = "$genderWord, ${user.name}!"
+        tvWelcome.text = "$genderWord, ${user.nombre}!"
 
         rvEvents.layoutManager = LinearLayoutManager(this)
 
@@ -95,7 +96,7 @@ class MainActivity : AppCompatActivity() {
 
         btnLogout.setOnClickListener {
             session.clearSession()
-            startActivity(Intent(this, LoginActivity::class.java))
+            startActivity(Intent(this, SplashActivity::class.java))
             finish()
         }
     }

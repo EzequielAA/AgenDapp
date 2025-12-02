@@ -5,8 +5,8 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import com.example.agendapp.data.model.Event
-import com.example.agendapp.data.model.User
 import java.io.File
+// import com.example.agendapp.data.model.User <--- Importación de User eliminada
 
 class AgenDappDatabaseHelper(context: Context) :
     SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
@@ -15,15 +15,9 @@ class AgenDappDatabaseHelper(context: Context) :
         private const val DATABASE_NAME = "agendapp.db"
         private const val DATABASE_VERSION = 3
 
-        // Tabla usuarios
-        private const val TABLE_USERS = "users"
-        private const val COL_ID = "id"
-        private const val COL_NAME = "name"
-        private const val COL_EMAIL = "email"
-        private const val COL_PASSWORD = "password"
-        private const val COL_GENDER = "gender"
+        // Constantes de Usuarios ELIMINADAS
 
-        // Tabla eventos
+        // Tabla eventos (Mantenida)
         private const val TABLE_EVENTS = "events"
         private const val COL_EVENT_ID = "id"
         private const val COL_EVENT_USER_ID = "user_id"
@@ -34,16 +28,9 @@ class AgenDappDatabaseHelper(context: Context) :
     }
 
     override fun onCreate(db: SQLiteDatabase) {
-        val createUsersTable = """
-            CREATE TABLE $TABLE_USERS (
-                $COL_ID INTEGER PRIMARY KEY AUTOINCREMENT,
-                $COL_NAME TEXT NOT NULL,
-                $COL_EMAIL TEXT UNIQUE NOT NULL,
-                $COL_PASSWORD TEXT NOT NULL,
-                $COL_GENDER TEXT NOT NULL
-            )
-        """.trimIndent()
+        // ELIMINADA la creación de la tabla users
 
+        // Creación de la tabla de eventos (Sin llave foránea al usuario local)
         val createEventsTable = """
             CREATE TABLE $TABLE_EVENTS (
                 $COL_EVENT_ID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,63 +38,29 @@ class AgenDappDatabaseHelper(context: Context) :
                 $COL_EVENT_TITLE TEXT NOT NULL,
                 $COL_EVENT_DATE TEXT NOT NULL,
                 $COL_EVENT_TIME TEXT,
-                $COL_EVENT_IMAGE TEXT,
-                FOREIGN KEY($COL_EVENT_USER_ID) REFERENCES $TABLE_USERS($COL_ID)
+                $COL_EVENT_IMAGE TEXT
             )
         """.trimIndent()
 
-        db.execSQL(createUsersTable)
         db.execSQL(createEventsTable)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         db.execSQL("DROP TABLE IF EXISTS $TABLE_EVENTS")
-        db.execSQL("DROP TABLE IF EXISTS $TABLE_USERS")
+        // ELIMINADA la instrucción DROP TABLE users
         onCreate(db)
     }
 
-    // ========== USUARIOS ==========
+    // ========== USUARIOS (MÉTODOS ELIMINADOS) ==========
+    /*
+    Se eliminaron:
+    fun registerUser(user: User): Boolean
+    fun loginUser(email: String, password: String): User?
+    */
+    // ==================================================
 
-    fun registerUser(user: User): Boolean {
-        val db = writableDatabase
-        val values = ContentValues().apply {
-            put(COL_NAME, user.name)
-            put(COL_EMAIL, user.email)
-            put(COL_PASSWORD, user.password)
-            put(COL_GENDER, user.gender)
-        }
-        val result = db.insert(TABLE_USERS, null, values)
-        db.close()
-        return result != -1L
-    }
 
-    fun loginUser(email: String, password: String): User? {
-        val db = readableDatabase
-        val cursor = db.query(
-            TABLE_USERS,
-            null,
-            "$COL_EMAIL=? AND $COL_PASSWORD=?",
-            arrayOf(email, password),
-            null, null, null
-        )
-
-        var user: User? = null
-        if (cursor.moveToFirst()) {
-            user = User(
-                id = cursor.getInt(cursor.getColumnIndexOrThrow(COL_ID)),
-                name = cursor.getString(cursor.getColumnIndexOrThrow(COL_NAME)),
-                email = cursor.getString(cursor.getColumnIndexOrThrow(COL_EMAIL)),
-                password = cursor.getString(cursor.getColumnIndexOrThrow(COL_PASSWORD)),
-                gender = cursor.getString(cursor.getColumnIndexOrThrow(COL_GENDER))
-            )
-        }
-
-        cursor.close()
-        db.close()
-        return user
-    }
-
-    // ========== EVENTOS ==========
+    // ========== EVENTOS (MÉTODOS MANTENIDOS) ==========
 
     fun insertEvent(event: Event): Boolean {
         val db = writableDatabase
@@ -195,6 +148,7 @@ class AgenDappDatabaseHelper(context: Context) :
     fun updateEvent(event: Event): Boolean {
         val db = writableDatabase
         val values = ContentValues().apply {
+            put(COL_EVENT_USER_ID, event.userId)
             put(COL_EVENT_TITLE, event.title)
             put(COL_EVENT_DATE, event.date)
             put(COL_EVENT_TIME, event.time)

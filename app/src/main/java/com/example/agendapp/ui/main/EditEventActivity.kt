@@ -8,14 +8,15 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
+import android.provider.MediaStore
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import com.example.agendapp.R
 import com.example.agendapp.data.database.AgenDappDatabaseHelper
 import com.example.agendapp.data.model.Event
 import com.example.agendapp.util.ReminderReceiver
+import com.example.agendapp.util.SessionManager
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
@@ -24,6 +25,7 @@ import java.util.*
 class EditEventActivity : AppCompatActivity() {
 
     private lateinit var db: AgenDappDatabaseHelper
+    private lateinit var session: SessionManager // Aseguramos que SessionManager esté disponible
 
     private var eventId: Int = 0
     private var currentEvent: Event? = null
@@ -36,6 +38,7 @@ class EditEventActivity : AppCompatActivity() {
         setContentView(R.layout.activity_edit_event)
 
         db = AgenDappDatabaseHelper(this)
+        session = SessionManager(this) // Inicializamos el SessionManager
         eventId = intent.getIntExtra("eventId", 0)
 
         val etTitle = findViewById<EditText>(R.id.etEditTitle)
@@ -61,6 +64,7 @@ class EditEventActivity : AppCompatActivity() {
         tvDate.text = event.date
         tvTime.text = event.time ?: ""
 
+        // Nota: Si usaras Glide, necesitarías configurarlo aquí con la URL de la imagen
         finalImagePath = event.imagePath
 
         if (!finalImagePath.isNullOrEmpty()) {
@@ -74,7 +78,9 @@ class EditEventActivity : AppCompatActivity() {
         btnPickDate.setOnClickListener {
             val c = Calendar.getInstance()
             DatePickerDialog(this, { _, y, m, d ->
-                tvDate.text = "$d/${m + 1}/$y"
+                // Usamos String.format para asegurar que el mes tenga 2 dígitos
+                val month = m + 1
+                tvDate.text = String.format("%02d/%02d/%d", d, month, y)
             }, c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH)).show()
         }
 
@@ -101,6 +107,7 @@ class EditEventActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
+            // Si hay una imagen nueva, borramos la vieja y guardamos la nueva
             if (newImageUri != null) {
                 finalImagePath?.let { oldPath ->
                     val oldFile = File(oldPath)
@@ -109,6 +116,7 @@ class EditEventActivity : AppCompatActivity() {
                 finalImagePath = saveImageToInternal(newImageUri!!)
             }
 
+            // Creamos una copia del evento con los datos actualizados
             val updatedEvent = event.copy(
                 title = title,
                 date = date,
@@ -116,18 +124,21 @@ class EditEventActivity : AppCompatActivity() {
                 imagePath = finalImagePath
             )
 
+            // Guardamos en la base de datos local (SQLite)
             if (db.updateEvent(updatedEvent)) {
 
                 val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
                 val intent = Intent(this, ReminderReceiver::class.java)
 
+                // El ID del evento se usa como RequestCode para la PendingIntent
                 val pendingIntent = PendingIntent.getBroadcast(
                     this,
-                    updatedEvent.id,
+                    updatedEvent.id, // ID del evento
                     intent,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
 
+                // Cancelamos el recordatorio antiguo para evitar duplicados si la hora cambió
                 alarmManager.cancel(pendingIntent)
 
                 Toast.makeText(this, "Evento actualizado. Vuelve a activar el recordatorio si es necesario.", Toast.LENGTH_LONG).show()
@@ -139,6 +150,7 @@ class EditEventActivity : AppCompatActivity() {
     }
 
     private fun saveImageToInternal(uri: Uri): String? {
+        // [Lógica para copiar la imagen a la memoria interna]
         return try {
             val inputStream: InputStream? = contentResolver.openInputStream(uri)
             val fileName = "edit_img_${System.currentTimeMillis()}.jpg"
@@ -164,10 +176,10 @@ class EditEventActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
 
+        // Manejo de la selección de imagen
         if (requestCode == 200 && resultCode == RESULT_OK && data != null) {
             newImageUri = data.data
             findViewById<ImageView>(R.id.ivEditPreview).setImageURI(newImageUri)
         }
-
     }
 }

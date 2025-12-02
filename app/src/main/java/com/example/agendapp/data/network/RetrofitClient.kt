@@ -5,7 +5,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitClient {
     // ⚠️ Reemplaza esto con tu URL de Render (Debe terminar en /)
-    private const val BASE_URL = "https://agendapp-backend.onrender.com"
+    private const val BASE_URL = "https://agendapp-backend.onrender.com/"
 
     val apiService: ApiService by lazy {
         Retrofit.Builder()
