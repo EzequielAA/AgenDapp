@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.example.agendapp.data.model.User
 
-class SessionManager(context: Context) {
+class  SessionManager(context: Context) {
 
     private val prefs = context.getSharedPreferences("AgenDappPrefs", Context.MODE_PRIVATE)
 
